@@ -17,10 +17,11 @@ PYDANTIC MODELS:
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
+from googleapiclient.discovery import build
 
 from ingestion import extract_video_id, ingest_video
 from retrieval import query_videos
@@ -100,6 +101,42 @@ app.add_middleware(
 @app.get("/health")
 def health_check():
     return {"status": "ok"}
+
+
+@app.get("/search")
+def search_youtube(q: str = Query(..., min_length=1), n: int = Query(5, ge=1, le=10)):
+    """
+    Search YouTube for videos matching a topic query.
+    Returns up to n results with video_id, title, thumbnail_url, and channel_title.
+    Requires YOUTUBE_API_KEY in environment.
+    """
+    api_key = os.getenv("YOUTUBE_API_KEY")
+    if not api_key:
+        raise HTTPException(status_code=503, detail="YouTube search is not configured. Add YOUTUBE_API_KEY to .env.")
+
+    try:
+        youtube = build("youtube", "v3", developerKey=api_key)
+        response = youtube.search().list(
+            part="snippet",
+            q=q,
+            type="video",
+            maxResults=n,
+            fields="items(id/videoId,snippet/title,snippet/thumbnails/medium/url,snippet/channelTitle)",
+        ).execute()
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"YouTube API error: {str(e)}")
+
+    results = [
+        {
+            "video_id": item["id"]["videoId"],
+            "title": item["snippet"]["title"],
+            "thumbnail_url": item["snippet"]["thumbnails"]["medium"]["url"],
+            "channel_title": item["snippet"]["channelTitle"],
+        }
+        for item in response.get("items", [])
+        if item.get("id", {}).get("videoId")
+    ]
+    return {"results": results}
 
 
 @app.get("/videos")

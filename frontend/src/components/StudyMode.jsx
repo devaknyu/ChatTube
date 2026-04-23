@@ -25,7 +25,7 @@ const STUDY_TYPES = [
   { key: 'quiz',       label: 'Quiz',           icon: '❓' },
 ]
 
-export default function StudyMode({ api, activeVideoId, videos }) {
+export default function StudyMode({ api, activeVideoId, videos, onPin }) {
   const [activeType, setActiveType] = useState(null)
   const [cache, setCache] = useState({})   // { "videoId_studyType": content }
   const [loading, setLoading] = useState(false)
@@ -131,10 +131,19 @@ export default function StudyMode({ api, activeVideoId, videos }) {
         )}
 
         {content && !loading && (
-          <pre className="whitespace-pre-wrap text-sm text-gray-200 leading-relaxed
-                          font-sans bg-gray-900 rounded-xl px-4 py-4 mt-2">
-            {content}
-          </pre>
+          <>
+            <pre className="whitespace-pre-wrap text-sm text-gray-200 leading-relaxed
+                            font-sans bg-gray-900 rounded-xl px-4 py-4 mt-2">
+              {content}
+            </pre>
+            <button
+              onClick={() => onPin(content, `Study: ${STUDY_TYPES.find(t => t.key === activeType)?.label}`)}
+              className="text-xs text-gray-600 hover:text-yellow-400 transition-colors mt-2"
+              title="Pin to notes"
+            >
+              📌 Pin
+            </button>
+          </>
         )}
       </div>
     </div>

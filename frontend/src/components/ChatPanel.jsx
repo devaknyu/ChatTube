@@ -78,7 +78,7 @@ function renderMessageContent(text, videos, onTimestampClick) {
   return parts
 }
 
-export default function ChatPanel({ api, videos, onTimestampClick }) {
+export default function ChatPanel({ api, videos, onTimestampClick, onPin }) {
   const [messages, setMessages] = useState([])  // [{role: 'user'|'assistant', text, sources}]
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -160,6 +160,17 @@ export default function ChatPanel({ api, videos, onTimestampClick }) {
                   : msg.text
                 }
               </div>
+
+              {/* Pin button for assistant messages */}
+              {msg.role === 'assistant' && (
+                <button
+                  onClick={() => onPin(msg.text, 'Chat')}
+                  className="text-xs text-gray-600 hover:text-yellow-400 transition-colors mt-1"
+                  title="Pin to notes"
+                >
+                  📌 Pin
+                </button>
+              )}
 
               {/* Sources toggle for assistant messages */}
               {msg.role === 'assistant' && msg.sources?.length > 0 && (

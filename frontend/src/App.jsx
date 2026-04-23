@@ -22,6 +22,7 @@ import Library from './components/Library.jsx'
 import VideoPlayer from './components/VideoPlayer.jsx'
 import ChatPanel from './components/ChatPanel.jsx'
 import StudyMode from './components/StudyMode.jsx'
+import NotesPanel from './components/NotesPanel.jsx'
 
 const API = '/api'
 
@@ -29,7 +30,8 @@ export default function App() {
   const [videos, setVideos] = useState([])          // [{video_id, title, thumbnail_url, chunk_count}]
   const [activeVideoId, setActiveVideoId] = useState(null)
   const [seekTo, setSeekTo] = useState(null)        // {videoId, seconds} — null = no pending seek
-  const [activeTab, setActiveTab] = useState('chat') // 'chat' | 'study'
+  const [activeTab, setActiveTab] = useState('chat') // 'chat' | 'study' | 'notes'
+  const [notes, setNotes] = useState([])             // [{id, text, source}]
 
   // Called by LandingPage after successfully loading the first batch of videos
   function handleVideosLoaded(newVideos) {
@@ -55,6 +57,18 @@ export default function App() {
       const remaining = videos.filter(v => v.video_id !== videoId)
       setActiveVideoId(remaining[0]?.video_id ?? null)
     }
+  }
+
+  function handlePin(text, source) {
+    setNotes(prev => [...prev, { id: Date.now(), text, source }])
+  }
+
+  function handleDeleteNote(id) {
+    setNotes(prev => prev.filter(n => n.id !== id))
+  }
+
+  function handleUpdateNote(id, text) {
+    setNotes(prev => prev.map(n => n.id === id ? { ...n, text } : n))
   }
 
   // Called by ChatPanel when user clicks a timestamp citation
@@ -114,24 +128,44 @@ export default function App() {
                   : 'text-gray-400 hover:text-gray-200'
               }`}
             >
-              📖 Study Mode
+              📖 Study
+            </button>
+            <button
+              onClick={() => setActiveTab('notes')}
+              className={`flex-1 py-3 text-sm font-medium transition-colors ${
+                activeTab === 'notes'
+                  ? 'text-white border-b-2 border-blue-500'
+                  : 'text-gray-400 hover:text-gray-200'
+              }`}
+            >
+              📝 Notes{notes.length > 0 && <span className="ml-1 text-xs text-blue-400">({notes.length})</span>}
             </button>
           </div>
 
-          {/* Panel content */}
-          {activeTab === 'chat' ? (
+          {/* Panel content — all rendered always so local state survives tab switches */}
+          <div className={`flex flex-col flex-1 min-h-0 ${activeTab !== 'chat' ? 'hidden' : ''}`}>
             <ChatPanel
               api={API}
               videos={videos}
               onTimestampClick={handleTimestampClick}
+              onPin={handlePin}
             />
-          ) : (
+          </div>
+          <div className={`flex flex-col flex-1 min-h-0 ${activeTab !== 'study' ? 'hidden' : ''}`}>
             <StudyMode
               api={API}
               activeVideoId={activeVideoId}
               videos={videos}
+              onPin={handlePin}
             />
-          )}
+          </div>
+          <div className={`flex flex-col flex-1 min-h-0 ${activeTab !== 'notes' ? 'hidden' : ''}`}>
+            <NotesPanel
+              notes={notes}
+              onDelete={handleDeleteNote}
+              onUpdate={handleUpdateNote}
+            />
+          </div>
         </div>
       </div>
     </div>

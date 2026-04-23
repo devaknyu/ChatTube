@@ -10,3 +10,4 @@ youtube-transcript-api
 requests
 google-genai
 langchain-groq
+google-api-python-client
