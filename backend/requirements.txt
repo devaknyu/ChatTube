@@ -1,0 +1,12 @@
+fastapi
+uvicorn[standard]
+python-dotenv
+langchain
+langchain-text-splitters
+langchain-google-genai>=2.0.0
+langchain-chroma
+chromadb
+youtube-transcript-api
+requests
+google-genai
+langchain-groq

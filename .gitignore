@@ -1,0 +1,36 @@
+# Environment variables — never commit API keys
+.env
+.env.local
+.env.*.local
+
+# Python
+backend/.venv/
+backend/__pycache__/
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# ChromaDB — local vector store, runtime data only
+backend/chroma_db/
+
+# Node
+frontend/node_modules/
+node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
