@@ -59,6 +59,16 @@ export default function App() {
     }
   }
 
+  // Called by the ChatTube home button — clears backend session and returns to landing
+  async function handleGoHome() {
+    await Promise.all(videos.map(v => fetch(`${API}/videos/${v.video_id}`, { method: 'DELETE' })))
+    setVideos([])
+    setActiveVideoId(null)
+    setSeekTo(null)
+    setActiveTab('chat')
+    setNotes([])
+  }
+
   function handlePin(text, source) {
     setNotes(prev => [...prev, { id: Date.now(), text, source }])
   }
@@ -94,6 +104,7 @@ export default function App() {
         onSelect={handleSelectVideo}
         onRemove={handleRemoveVideo}
         onVideosAdded={handleVideosAdded}
+        onGoHome={handleGoHome}
       />
 
       {/* Main content: player (left) + panel (right) */}

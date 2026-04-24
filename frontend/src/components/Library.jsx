@@ -1,28 +1,17 @@
-/*
-  Library.jsx — Horizontal strip of loaded video thumbnails + "Add Video" button.
-
-  DESIGN:
-    - Active video gets a blue ring + play indicator overlay
-    - Hover shows an X button to remove the video
-    - "+ Add Video" opens an inline input (same flow as LandingPage, but mid-session)
-    - MAX_VIDEOS=5 is enforced by the backend; we hide the add button once we hit the cap
-      so users get a clear signal instead of a cryptic error
-*/
-
 import { useState } from 'react'
 
 const MAX_VIDEOS = 5
 
-export default function Library({ videos, activeVideoId, api, onSelect, onRemove, onVideosAdded }) {
+export default function Library({ videos, activeVideoId, api, onSelect, onRemove, onVideosAdded, onGoHome }) {
   const [adding, setAdding] = useState(false)
-  const [addText, setAddText] = useState('')
+  const [addUrl, setAddUrl] = useState('')
   const [addLoading, setAddLoading] = useState(false)
   const [addErrors, setAddErrors] = useState([])
 
   async function handleAdd(e) {
     e.preventDefault()
-    const urls = addText.split('\n').map(u => u.trim()).filter(Boolean)
-    if (!urls.length) return
+    const url = addUrl.trim()
+    if (!url) return
 
     setAddLoading(true)
     setAddErrors([])
@@ -31,13 +20,13 @@ export default function Library({ videos, activeVideoId, api, onSelect, onRemove
       const res = await fetch(`${api}/videos`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ urls }),
+        body: JSON.stringify({ urls: [url] }),
       })
       const data = await res.json()
 
       if (data.added?.length) {
         onVideosAdded(data.added)
-        setAddText('')
+        setAddUrl('')
         setAdding(false)
       }
       if (data.errors?.length) {
@@ -53,6 +42,21 @@ export default function Library({ videos, activeVideoId, api, onSelect, onRemove
   return (
     <div className="bg-gray-900 border-b border-gray-800 px-4 py-2 shrink-0">
       <div className="flex items-center gap-3 overflow-x-auto">
+
+        {/* Home button — click to start a new session */}
+        <button
+          onClick={onGoHome}
+          title="New session"
+          className="shrink-0 text-white font-bold text-sm px-3 py-1.5 rounded-lg
+                     hover:bg-gray-800 transition-colors border border-transparent
+                     hover:border-gray-700 whitespace-nowrap"
+        >
+          ChatTube
+        </button>
+
+        {/* Divider */}
+        <div className="w-px h-10 bg-gray-700 shrink-0" />
+
         {videos.map(video => (
           <div
             key={video.video_id}
@@ -99,21 +103,20 @@ export default function Library({ videos, activeVideoId, api, onSelect, onRemove
         {/* Add Video button / inline form */}
         {videos.length < MAX_VIDEOS && (
           adding ? (
-            <form onSubmit={handleAdd} className="flex flex-col gap-1 min-w-48">
-              <textarea
-                value={addText}
-                onChange={e => setAddText(e.target.value)}
-                placeholder="Paste YouTube URL(s)"
-                rows={2}
+            <form onSubmit={handleAdd} className="flex flex-col gap-1 min-w-56">
+              <input
+                value={addUrl}
+                onChange={e => setAddUrl(e.target.value)}
+                placeholder="https://youtube.com/watch?v=..."
                 autoFocus
-                className="bg-gray-800 border border-gray-600 rounded-lg px-2 py-1
+                className="bg-gray-800 border border-gray-600 rounded-lg px-2 py-1.5
                            text-xs text-gray-100 placeholder-gray-500 focus:outline-none
-                           focus:border-blue-500 resize-none"
+                           focus:border-blue-500"
               />
               <div className="flex gap-1">
                 <button
                   type="submit"
-                  disabled={addLoading}
+                  disabled={addLoading || !addUrl.trim()}
                   className="flex-1 bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700
                              text-white text-xs font-medium py-1 rounded-lg transition-colors"
                 >
@@ -121,7 +124,7 @@ export default function Library({ videos, activeVideoId, api, onSelect, onRemove
                 </button>
                 <button
                   type="button"
-                  onClick={() => { setAdding(false); setAddErrors([]) }}
+                  onClick={() => { setAdding(false); setAddUrl(''); setAddErrors([]) }}
                   className="flex-1 bg-gray-700 hover:bg-gray-600 text-gray-300
                              text-xs py-1 rounded-lg transition-colors"
                 >

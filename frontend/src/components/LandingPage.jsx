@@ -1,30 +1,14 @@
-/*
-  LandingPage.jsx — Entry point. Two modes:
-    1. "Paste URLs" — original flow, textarea + Load Videos
-    2. "Search" — type a topic, get 5 YouTube results as cards, pick which to load
-
-  SEARCH FLOW:
-    GET /search?q=...&n=5 → result cards (video_id, title, thumbnail, channel)
-    User checks which cards they want → "Load Selected" calls POST /videos with
-    standard YouTube URLs built from the video_ids. Reuses the exact same ingestion
-    pipeline as the paste-URL flow, no special handling needed.
-
-  PARTIAL SUCCESS:
-    Same as paste-URL mode — if some videos load and some fail, we enter the app
-    and surface the errors so the user isn't blocked.
-*/
-
 import { useState } from 'react'
 
 export default function LandingPage({ api, onVideosLoaded }) {
-  const [mode, setMode] = useState('url')         // 'url' | 'search'
+  const [mode, setMode] = useState('search')       // 'search' | 'url'
 
-  // URL mode state
-  const [urlText, setUrlText] = useState('')
+  // URL mode state — one input per URL, dynamically add/remove rows
+  const [urls, setUrls] = useState([''])
 
   // Search mode state
   const [query, setQuery]         = useState('')
-  const [results, setResults]     = useState([])   // [{video_id, title, thumbnail_url, channel_title}]
+  const [results, setResults]     = useState([])
   const [selected, setSelected]   = useState(new Set())
   const [searching, setSearching] = useState(false)
   const [searchError, setSearchError] = useState(null)
@@ -33,12 +17,24 @@ export default function LandingPage({ api, onVideosLoaded }) {
   const [loading, setLoading] = useState(false)
   const [errors, setErrors]   = useState([])
 
-  // ── URL mode submit ────────────────────────────────────────────────────────
+  // ── URL mode helpers ───────────────────────────────────────────────────────
+  function addUrl() {
+    setUrls(prev => [...prev, ''])
+  }
+
+  function removeUrl(i) {
+    setUrls(prev => prev.filter((_, idx) => idx !== i))
+  }
+
+  function updateUrl(i, val) {
+    setUrls(prev => prev.map((u, idx) => idx === i ? val : u))
+  }
+
   async function handleUrlSubmit(e) {
     e.preventDefault()
-    const urls = urlText.split('\n').map(u => u.trim()).filter(Boolean)
-    if (!urls.length) return
-    await loadVideos(urls)
+    const validUrls = urls.map(u => u.trim()).filter(Boolean)
+    if (!validUrls.length) return
+    await loadVideos(validUrls)
   }
 
   // ── Search mode ────────────────────────────────────────────────────────────
@@ -82,14 +78,14 @@ export default function LandingPage({ api, onVideosLoaded }) {
   }
 
   // ── Shared ingestion call ──────────────────────────────────────────────────
-  async function loadVideos(urls) {
+  async function loadVideos(urlList) {
     setLoading(true)
     setErrors([])
     try {
       const res = await fetch(`${api}/videos`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ urls }),
+        body: JSON.stringify({ urls: urlList }),
       })
       const data = await res.json()
 
@@ -115,22 +111,12 @@ export default function LandingPage({ api, onVideosLoaded }) {
         <div className="text-center mb-10">
           <h1 className="text-5xl font-bold text-white mb-3">ChatTube</h1>
           <p className="text-gray-400 text-lg">
-            Paste YouTube URLs. Ask questions. Get answers with clickable timestamps.
+            Search any topic or paste a URL. Ask questions and get AI answers with clickable timestamps.
           </p>
         </div>
 
-        {/* Mode toggle */}
+        {/* Mode toggle — Search first */}
         <div className="flex bg-gray-900 border border-gray-700 rounded-xl p-1 mb-5">
-          <button
-            onClick={() => setMode('url')}
-            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
-              mode === 'url'
-                ? 'bg-blue-600 text-white'
-                : 'text-gray-400 hover:text-gray-200'
-            }`}
-          >
-            Paste URLs
-          </button>
           <button
             onClick={() => setMode('search')}
             className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -141,30 +127,17 @@ export default function LandingPage({ api, onVideosLoaded }) {
           >
             Search by Topic
           </button>
+          <button
+            onClick={() => setMode('url')}
+            className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${
+              mode === 'url'
+                ? 'bg-blue-600 text-white'
+                : 'text-gray-400 hover:text-gray-200'
+            }`}
+          >
+            Paste URLs
+          </button>
         </div>
-
-        {/* ── URL mode ── */}
-        {mode === 'url' && (
-          <form onSubmit={handleUrlSubmit} className="space-y-4">
-            <textarea
-              value={urlText}
-              onChange={e => setUrlText(e.target.value)}
-              placeholder={'https://youtube.com/watch?v=...\nhttps://youtu.be/...\n\nPaste one or more URLs, one per line'}
-              rows={5}
-              className="w-full bg-gray-900 border border-gray-700 rounded-xl px-4 py-3 text-gray-100
-                         placeholder-gray-600 focus:outline-none focus:border-blue-500 resize-none
-                         text-sm leading-relaxed"
-            />
-            <button
-              type="submit"
-              disabled={loading || !urlText.trim()}
-              className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:text-gray-500
-                         text-white font-semibold py-3 rounded-xl transition-colors"
-            >
-              {loading ? 'Loading videos…' : 'Load Videos'}
-            </button>
-          </form>
-        )}
 
         {/* ── Search mode ── */}
         {mode === 'search' && (
@@ -194,7 +167,6 @@ export default function LandingPage({ api, onVideosLoaded }) {
               </div>
             )}
 
-            {/* Result cards */}
             {results.length > 0 && (
               <>
                 <div className="space-y-2">
@@ -249,6 +221,55 @@ export default function LandingPage({ api, onVideosLoaded }) {
               </>
             )}
           </div>
+        )}
+
+        {/* ── URL mode ── */}
+        {mode === 'url' && (
+          <form onSubmit={handleUrlSubmit} className="space-y-3">
+            <div className="space-y-2">
+              {urls.map((url, i) => (
+                <div key={i} className="flex items-center gap-2">
+                  <input
+                    value={url}
+                    onChange={e => updateUrl(i, e.target.value)}
+                    placeholder="https://youtube.com/watch?v=..."
+                    className="flex-1 bg-gray-900 border border-gray-700 rounded-xl px-4 py-3
+                               text-sm text-gray-100 placeholder-gray-600 focus:outline-none
+                               focus:border-blue-500"
+                  />
+                  {urls.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => removeUrl(i)}
+                      className="text-gray-500 hover:text-red-400 px-2 py-1 transition-colors text-lg leading-none"
+                      title="Remove"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {urls.length < 5 && (
+              <button
+                type="button"
+                onClick={addUrl}
+                className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
+              >
+                + Add another URL
+              </button>
+            )}
+
+            <button
+              type="submit"
+              disabled={loading || !urls.some(u => u.trim())}
+              className="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-gray-700 disabled:text-gray-500
+                         text-white font-semibold py-3 rounded-xl transition-colors"
+            >
+              {loading ? 'Loading videos…' : 'Load Videos'}
+            </button>
+          </form>
         )}
 
         {/* Shared error display */}
